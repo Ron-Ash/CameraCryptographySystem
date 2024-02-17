@@ -132,4 +132,5 @@ class Client:
 if __name__ == "__main__":
     client = Client()
     client.take_photo("image.jpg", False, False)
+    client.get_photo_metadata("image.jpg")
     print(client.validate_photo("image.jpg"))

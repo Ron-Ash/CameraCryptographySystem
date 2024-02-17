@@ -27,6 +27,9 @@ The images above demonstrate the main functionalities the client (camera) and se
 1. Clone the repository:  ``` > git clone https://github.com/Ron-Ash/CameraCryptographySystem.git ```
 2. run ``` server.py ```
 3. run ``` client.py ```
+4. enter username and password when prompted to in ``` client.py ``` command-line
+5. once a window pops up with the captured image, close it by pressing spacebar while clicked on in (dont use close button, will cause an error)
+6. view server and client print-outs
 
 This will have the client program create an asymmetric key, take a photo from the computer's camera and follow the signature creation pathway. Then it will concatenate the signature to the message (image, user id, ...) and save it all as a image.jpg. Then it will validate the created image, printing True or False if the image is valid.
 
