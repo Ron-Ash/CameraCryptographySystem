@@ -1,4 +1,4 @@
-import communicationCommands as command
+from communicationCommands import *
 from Crypto.Signature import PKCS1_v1_5
 from Crypto.PublicKey import RSA
 from Crypto.Hash import SHA256
@@ -6,6 +6,23 @@ from Crypto.Hash import SHA256
 from threading import Thread
 from socket import *
 import ssl
+
+class ServerCommunication(Communication):
+    @staticmethod
+    def form_setup_reply(id: bytes, expiryDate: bytes) -> str:
+        return f"{COMMAND_SETUP}:{REPLY}\n{HEADER_USER_ID}:" + id.hex() + f"\n{HEADER_EXPIRY_DATE}:" + expiryDate.hex() + TERMINATION_LINE
+    
+    @staticmethod
+    def form_renew_reply(id: bytes, expiryDate: bytes) -> str:
+        return f"{COMMAND_RENEW}:{REPLY}\n{HEADER_USER_ID}:" + id.hex() + f"\n{HEADER_EXPIRY_DATE}:" + expiryDate.hex() + TERMINATION_LINE
+    
+    @staticmethod
+    def form_validation_reply(uname: str, publicK: bytes) -> str:
+        return f"{COMMAND_VALIDATE}:{REPLY}\n{HEADER_USERNAME}:" + uname.hex() + f"\n{HEADER_PUBLIC_KEY}:" + publicK.hex() + TERMINATION_LINE
+    
+    @staticmethod
+    def form_invalid_reply() -> str:
+        return f"{COMMAND_FAILURE}:{REPLY}" + TERMINATION_LINE
 
 database = {}
 
@@ -16,45 +33,42 @@ class SignInDatabase:
         self.passwordH = passwordH
         self.publicKey = publicKey
 
-def recieve_message_segment(sock: socket, buffer = bytes()) -> tuple[dict, bytes]:
-    message = None
-    while True:
-        tmp = buffer.find(command.TERMINATION_LINE.encode())
-        if tmp != -1:
-            message = buffer[:tmp]
-            buffer = buffer[tmp+2:]
-            break
-        buffer += sock.recv(1024)
-    data = command.decomposeMessage(message.decode())
-    return data,buffer
-
 def recieve_command(sock: socket, buffer = bytes()) -> bytes:
-    data, buffer = recieve_message_segment(sock, buffer)
+    data, buffer = ServerCommunication.recieve_message_segment(sock, buffer)
     print(data)
     # OPERATE ON MESSAGE
-    if (setup_command := data.get(command.COMMAND_SETUP, None)) != None and setup_command == command.REQUEST:
-        username = bytes(data.get(command.HEADER_USERNAME, None), "utf-8")
-        passwordH = data.get(command.HEADER_HASHED_PASSWORD, None)
-        publicKey = data.get(command.HEADER_PUBLIC_KEY, None)
-        sig = data.get(command.HEADER_SIGNATURE, None)
+    if (setup_command := data.get(COMMAND_SETUP, None)) != None and setup_command == REQUEST:
+        username = data.get(HEADER_USERNAME, None)
+        passwordH = data.get(HEADER_HASHED_PASSWORD, None)
+        publicKey = data.get(HEADER_PUBLIC_KEY, None)
+        sig = data.get(HEADER_SIGNATURE, None)
+        print("reached A")
         if username and passwordH and publicKey and sig:
-            public = PKCS1_v1_5.new(RSA.import_key(bytes.fromhex(publicKey)))
-            verify = public.verify(SHA256.new(username + bytes.fromhex(passwordH) + bytes.fromhex(publicKey)), bytes.fromhex(sig))
+            username = bytes.fromhex(username)
+            passwordH = bytes.fromhex(passwordH)
+            publicKey = bytes.fromhex(publicKey)
+            public = PKCS1_v1_5.new(RSA.import_key(publicKey))
+            verify = public.verify(SHA256.new(username + passwordH + publicKey), bytes.fromhex(sig))
             if verify:
+                print("reached B")
                 # GENERATE IDS MORE EFFECTIVELY
                 userId = len(database.keys())
                 user_data = SignInDatabase(userId, username, passwordH, publicKey)
                 database[userId] = user_data
-                reply = command.REPLY_SYNCHRONISE % (userId, "None", "None", "None")
+                # reply = REPLY_SYNCHRONISE % (userId, "None", "None", "None")
+                reply = ServerCommunication.form_setup_reply(userId.to_bytes(12, "big"), b"2025-03-31")
                 sock.send(reply.encode())
                 print("Valid SETUP request given and user setup ")
-    if (setup_command := data.get(command.COMMAND_VALIDATE, None)) != None and setup_command == command.REQUEST:
+    if (setup_command := data.get(COMMAND_VALIDATE, None)) != None and setup_command == REQUEST:
         print("A")
-        userId = int(data.get(command.HEADER_USER_ID, None))
+        userId = int(data.get(HEADER_USER_ID, None))
         if (user_data := database.get(userId, None)) != None:
-            reply = command.REPLY_VALIDATE % (user_data.username, user_data.publicKey)
+            # reply = REPLY_VALIDATE % (user_data.username, user_data.publicKey)
+            reply = ServerCommunication.form_validation_reply(user_data.username, user_data.publicKey)
             sock.send(reply.encode())
-
+        else:
+            reply = ServerCommunication.form_invalid_reply()
+            sock.send(reply.encode())
 
     return buffer
 
