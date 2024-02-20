@@ -81,7 +81,7 @@ class Camera:
         if self.id == None or self.expiryDate == None:
             print("<ERROR>\tcould not setup license")
         self.take_photo("Image", True, -87*56, 157*43)
-        # self.photo_validation("Image")
+        self.photo_validation("Image")
 
     def setup_license(self)-> tuple[int, str] | tuple[None, None]:
         privateEncrypt = PKCS1_v1_5.new(RSA.import_key(self.userKey.decrypt_user_privateKey()))
@@ -110,7 +110,7 @@ class Camera:
             val = random.randint(0, len(tmp)-1)
             tmp = tmp[:val] + bytes([0x20]) + tmp[val+1:]
             file.write(tmp + id + gpsLocation + localTime + signature)
-        if not self.photo_validation("photoD"):
+        if not self.photo_validation("photoD"): # expect the validity check to fail causing False to be returned
             os.remove("photoD" + IMAGE_TYPE)
 
         with open("id" + IMAGE_TYPE, 'wb') as file:
@@ -118,7 +118,7 @@ class Camera:
             val = random.randint(0, len(tmp)-1)
             tmp = tmp[:val] + bytes([0x20]) + tmp[val+1:]
             file.write(photoD + tmp + gpsLocation + localTime + signature)
-        if not self.photo_validation("id"):
+        if not self.photo_validation("id"): # expect the COMMAND_FAILURE to be returned (id not found) causing False to be returned
             os.remove("id" + IMAGE_TYPE)
 
         with open("gpsLocation" + IMAGE_TYPE, 'wb') as file:
@@ -126,7 +126,7 @@ class Camera:
             val = random.randint(0, len(tmp)-1)
             tmp = tmp[:val] + bytes([0x20]) + tmp[val+1:]
             file.write(photoD + id + tmp + localTime + signature)
-        if not self.photo_validation("gpsLocation"):
+        if not self.photo_validation("gpsLocation"): # expect the validity check to fail causing False to be returned
             os.remove("gpsLocation" + IMAGE_TYPE)
 
         with open("localTime" + IMAGE_TYPE, 'wb') as file:
@@ -134,7 +134,7 @@ class Camera:
             val = random.randint(0, len(tmp)-1)
             tmp = tmp[:val] + bytes([0x20]) + tmp[val+1:]
             file.write(photoD + id + gpsLocation + tmp + signature)
-        if not self.photo_validation("localTime"):
+        if not self.photo_validation("localTime"): # expect the validity check to fail causing False to be returned
             os.remove("localTime" + IMAGE_TYPE)
 
         with open("signature" + IMAGE_TYPE, 'wb') as file:
@@ -142,7 +142,7 @@ class Camera:
             val = random.randint(0, len(tmp)-1)
             tmp = tmp[:val] + bytes([0x20]) + tmp[val+1:]
             file.write(photoD + id + gpsLocation + localTime + tmp)
-        if not self.photo_validation("signature"):
+        if not self.photo_validation("signature"): # expect the validity check to fail causing False to be returned
             os.remove("signature" + IMAGE_TYPE)
 
         
@@ -213,9 +213,9 @@ class Camera:
                         sock.close()
                         return True
                     else:
-                        print(f"<INVALID IMAGE>")
+                        print(f"<INVALID IMAGE>\tValidity failed")
                 elif (setup_command := data.get(COMMAND_FAILURE, None)) != None and setup_command == REPLY:
-                    print(f"<INVALID IMAGE>")
+                    print(f"<INVALID IMAGE>\tData given to server caused a COMMAND_FAILURE message")
                 else:
                     print(f"<ERROR>\tIncorrect message recieved")
         except FileNotFoundError:
