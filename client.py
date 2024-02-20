@@ -3,7 +3,7 @@ from Crypto.Hash import SHA256
 from Crypto.PublicKey import RSA
 from Crypto.Signature import PKCS1_v1_5
 
-from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet, InvalidToken
 
 import os
 
@@ -80,11 +80,19 @@ class Camera:
         self.id, self.expiryDate = self.setup_license()
         if self.id == None or self.expiryDate == None:
             print("<ERROR>\tcould not setup license")
+            return
         self.take_photo("Image", True, -87*56, 157*43)
         self.photo_validation("Image")
 
     def setup_license(self)-> tuple[int, str] | tuple[None, None]:
-        privateEncrypt = PKCS1_v1_5.new(RSA.import_key(self.userKey.decrypt_user_privateKey()))
+        try:
+            privateEncrypt = PKCS1_v1_5.new(RSA.import_key(self.userKey.decrypt_user_privateKey()))
+        except InvalidToken as e:
+            print(f"<ERROR>\tIncorrect password given")
+            return None, None
+        except IOError as e:
+            print(f"<ERROR>\tUnexpected error occured {e}")
+            return None, None
         preSignatureHash = SHA256.new(self.userKey.username.encode() + self.userKey.hashPassword + self.userKey.publicKey)
         signature = privateEncrypt.sign(preSignatureHash)
         message = ClientCommunication.form_setup_request(self.userKey.username, self.userKey.hashPassword, self.userKey.publicKey, signature)
@@ -209,7 +217,7 @@ class Camera:
                     
                     public = PKCS1_v1_5.new(RSA.import_key(publicK))
                     if public.verify(SHA256.new(fileBytes[:-256]), signature):
-                        print(f"<VALID IMAGE>\t{bytes.fromhex(uname).decode()}:{id} {localTime} Lat:{latitude} Lon:{longitude}")
+                        print(f"<VALID IMAGE>\tInformation about image:\n\tuser name = {bytes.fromhex(uname).decode()} user id = {id}\n\ttime photo taken = year-month-day hour:minute = {localTime}\n\tcoordinates(minues) = [latitude, longitude] = [{latitude}, {longitude}]")
                         sock.close()
                         return True
                     else:

@@ -27,10 +27,11 @@ The images above demonstrate the main functionalities the client (camera) and se
 1. Clone the repository:  ``` > git clone https://github.com/Ron-Ash/CameraCryptographySystem.git ```
 2. run ``` server.py ```
 3. run ``` client.py ```
-4. enter username and password when prompted to in ``` client.py ``` command-line
-5. once a window pops up with the captured image, close it by pressing spacebar while clicked on in (dont use close button, will cause an error)
-6. view server and client print-outs
+4. enter a username (unique), a password will be generated used to encrypt the stored Private Key (2 .txt files will be save containing the encrypted private key and the plaintext public key) which will be used in signing the photo.
+    - note that subsequent running of the program with the same username (and .txt file names), thh program will skip the key creation process.
+5. once a window pops up with the captured image, close it by either pressing spacebar while clicked on in or the "X" button, the image will then be stored under the name "Image.jpg"
 
-This will have the client program create an asymmetric key, take a photo from the computer's camera and follow the signature creation pathway. Then it will concatenate the signature to the message (image, user id, ...) and save it all as a image.jpg. Then it will validate the created image, printing True or False if the image is valid.
+This will have the client program create an asymmetric key, take a photo from the computer's camera and follow the signature creation pathway. Then it will concatenate the signature to the message (image, user id, ...) and save it all as a "Image.jpg". Afterwhich, the client program will attempt to validate whether "Image.jpg" has been manipulated or not, following the 3rd communication timeline seen above and printign at last that it is indeed a valid image.
+  - note that Client() has a method fake_images() which when run with a valid set of photo data, user id, gpsLocation, localTime, and signature (all bytes) demonstrates that the validation function indeed detects manipulation within every part of the image.
 
 Note: this program only accomplishes a very basic form of the design without the license renewals or the GPS/time data (though it does provide empty data segments for it). Also does not implement the Starting/Ending Frame ID.
