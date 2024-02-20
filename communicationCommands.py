@@ -1,10 +1,8 @@
 from socket import *
 
-# HEADER_COMMAND = "%s:%s\n"
 COMMAND_SETUP = "SETUP"
 COMMAND_VALIDATE = "VALIDATE"
 COMMAND_RENEW = "RENEW"
-# COMMAND_SYNCHRONISE = "SYNCHRONISE"
 COMMAND_FAILURE = "FAILURE"
 REQUEST = "REQUEST"
 REPLY = "REPLY"
@@ -14,26 +12,8 @@ HEADER_HASHED_PASSWORD = "HashedPassword"
 HEADER_PUBLIC_KEY = "PublicKey"
 HEADER_SIGNATURE = "Signature"
 HEADER_GPS_LOCATION = "GPSLocation"
-HEADER_LOCAL_TIME = "LocalTime"
 HEADER_EXPIRY_DATE = "ExpiryDate"
 TERMINATION_LINE = "\r\n"
-
-# REQUEST_SETUP = (HEADER_COMMAND % (COMMAND_SETUP,REQUEST)) + HEADER_USERNAME+":%s\n" + HEADER_HASHED_PASSWORD+":%s\n" + HEADER_PUBLIC_KEY+":%s\n" + HEADER_SIGNATURE+":%s" + TERMINATION_LINE
-# REQUEST_RENEW = (HEADER_COMMAND % (COMMAND_RENEW,REQUEST)) + HEADER_USERNAME+":%s\n" + HEADER_HASHED_PASSWORD+":%s\n" + HEADER_PUBLIC_KEY+":%s\n" + HEADER_SIGNATURE+":%s" + TERMINATION_LINE
-# REPLY_SYNCHRONISE = (HEADER_COMMAND % (COMMAND_SYNCHRONISE,REPLY)) + HEADER_USER_ID+":%s\n" + HEADER_GPS_LOCATION+":%s\n" + HEADER_LOCAL_TIME+":%s\n" + HEADER_EXPIRY_DATE+":%s" + TERMINATION_LINE
-# REQUEST_VALIDATE = (HEADER_COMMAND % (COMMAND_VALIDATE,REQUEST)) + HEADER_USER_ID+":%s" + TERMINATION_LINE
-# REPLY_VALIDATE = (HEADER_COMMAND % (COMMAND_VALIDATE,REPLY)) + HEADER_USERNAME+":%s\n" + HEADER_PUBLIC_KEY+":%s" + TERMINATION_LINE
-# REPLY_ERROR = (HEADER_COMMAND % (COMMAND_FAILURE,REPLY)) + TERMINATION_LINE
-
-# #Forbidden character \n, \r,
-# # input without terminating line
-# def decomposeMessage(message: str)->dict:
-#     tmp = message.split("\n")
-#     dictionary = dict()
-#     for header in tmp:
-#         head, value = header.split(":", 1)
-#         dictionary[head] = value
-#     return dictionary
 
 
 class Communication:
@@ -49,6 +29,7 @@ class Communication:
     @staticmethod
     def recieve_message_segment(sock: socket, buffer: bytes = bytes()) -> tuple[dict, bytes]:
         message = None
+        print("<RECIEVE MESSAGE SEGMENTS>\t", end="")
         while True:
             print("-", end="")
             tmp = buffer.find(TERMINATION_LINE.encode())
@@ -58,6 +39,7 @@ class Communication:
                 break
             buffer += sock.recv(1024)
         data = Communication.decomposeMessage(message.decode())
+        print("\n", end="")
         return data,buffer
 
 # username = "username"
