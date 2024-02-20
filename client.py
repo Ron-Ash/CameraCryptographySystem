@@ -68,6 +68,8 @@ class ClientCommunication(Communication):
     def form_validation_request(id: bytes, time: bytes) -> str:
         return f"{COMMAND_VALIDATE}:{REQUEST}\n{HEADER_USER_ID}:" + id.hex() + f"\n{HEADER_EXPIRY_DATE}:" + time.hex() + TERMINATION_LINE
 
+import random
+
 class Camera:
     userKey = None
     expiryDate = None
@@ -79,7 +81,7 @@ class Camera:
         if self.id == None or self.expiryDate == None:
             print("<ERROR>\tcould not setup license")
         self.take_photo("Image", True, -87*56, 157*43)
-        self.photo_validation("Image")
+        # self.photo_validation("Image")
 
     def setup_license(self)-> tuple[int, str] | tuple[None, None]:
         privateEncrypt = PKCS1_v1_5.new(RSA.import_key(self.userKey.decrypt_user_privateKey()))
@@ -101,6 +103,49 @@ class Camera:
     # def renew_license(self):
     #     pass
 
+    def fake_images(self, photoD: bytes, id: bytes, gpsLocation: bytes, localTime: bytes, signature: bytes) -> None:
+        IMAGE_TYPE = ".jpg"
+        with open("photoD" + IMAGE_TYPE, 'wb') as file:
+            tmp = photoD
+            val = random.randint(0, len(tmp)-1)
+            tmp = tmp[:val] + bytes([0x20]) + tmp[val+1:]
+            file.write(tmp + id + gpsLocation + localTime + signature)
+        if not self.photo_validation("photoD"):
+            os.remove("photoD" + IMAGE_TYPE)
+
+        with open("id" + IMAGE_TYPE, 'wb') as file:
+            tmp = id
+            val = random.randint(0, len(tmp)-1)
+            tmp = tmp[:val] + bytes([0x20]) + tmp[val+1:]
+            file.write(photoD + tmp + gpsLocation + localTime + signature)
+        if not self.photo_validation("id"):
+            os.remove("id" + IMAGE_TYPE)
+
+        with open("gpsLocation" + IMAGE_TYPE, 'wb') as file:
+            tmp = gpsLocation
+            val = random.randint(0, len(tmp)-1)
+            tmp = tmp[:val] + bytes([0x20]) + tmp[val+1:]
+            file.write(photoD + id + tmp + localTime + signature)
+        if not self.photo_validation("gpsLocation"):
+            os.remove("gpsLocation" + IMAGE_TYPE)
+
+        with open("localTime" + IMAGE_TYPE, 'wb') as file:
+            tmp = localTime
+            val = random.randint(0, len(tmp)-1)
+            tmp = tmp[:val] + bytes([0x20]) + tmp[val+1:]
+            file.write(photoD + id + gpsLocation + tmp + signature)
+        if not self.photo_validation("localTime"):
+            os.remove("localTime" + IMAGE_TYPE)
+
+        with open("signature" + IMAGE_TYPE, 'wb') as file:
+            tmp = signature
+            val = random.randint(0, len(tmp)-1)
+            tmp = tmp[:val] + bytes([0x20]) + tmp[val+1:]
+            file.write(photoD + id + gpsLocation + localTime + tmp)
+        if not self.photo_validation("signature"):
+            os.remove("signature" + IMAGE_TYPE)
+
+        
     def take_photo(self, filepath: str, letLocalTime: bool = False, latitude: int = 0, longitude: int = 0):
         # Header data is stored in big endian
         ENDIAN = "big"
@@ -124,6 +169,9 @@ class Camera:
                 privateEncrypt = PKCS1_v1_5.new(RSA.import_key(self.userKey.decrypt_user_privateKey()))
                 preSignatureHash = SHA256.new(message)
                 signature = privateEncrypt.sign(preSignatureHash)
+
+                # self.fake_images(photoD, id, gpsLocation, localTime, signature)
+
                 message = message + signature
                 try:
                     with open(filepath + IMAGE_TYPE, 'wb') as file:
@@ -166,6 +214,8 @@ class Camera:
                         return True
                     else:
                         print(f"<INVALID IMAGE>")
+                elif (setup_command := data.get(COMMAND_FAILURE, None)) != None and setup_command == REPLY:
+                    print(f"<INVALID IMAGE>")
                 else:
                     print(f"<ERROR>\tIncorrect message recieved")
         except FileNotFoundError:
