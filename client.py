@@ -53,7 +53,7 @@ from socket import *
 
 import cv2
 
-from communicationCommands import *
+from communication import *
 
 class ClientCommunication(Communication):
     @staticmethod
