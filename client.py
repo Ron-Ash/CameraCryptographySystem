@@ -1,3 +1,5 @@
+from clientCommunication import *
+
 # pip install pycryptodome
 from Crypto.Hash import SHA256
 from Crypto.PublicKey import RSA
@@ -6,6 +8,14 @@ from Crypto.Signature import PKCS1_v1_5
 from cryptography.fernet import Fernet, InvalidToken
 
 import os
+
+from datetime import datetime
+
+from socket import *
+
+import cv2
+
+import random
 
 class AsymmetricKey:
     username = None
@@ -46,29 +56,6 @@ class AsymmetricKey:
     
     def decrypt_user_privateKey(self) -> bytes:
         return Fernet(self.password).decrypt(self.privateKeyEncrypted)
-
-from datetime import datetime
-
-from socket import *
-
-import cv2
-
-from communication import *
-
-class ClientCommunication(Communication):
-    @staticmethod
-    def form_setup_request(uname: str, hashP: bytes, publicK: bytes, sig: bytes) -> str:
-        return f"{COMMAND_SETUP}:{REQUEST}\n{HEADER_USERNAME}:" + uname.encode().hex() + f"\n{HEADER_HASHED_PASSWORD}:" + hashP.hex() + f"\n{HEADER_PUBLIC_KEY}:" + publicK.hex() + f"\n{HEADER_SIGNATURE}:" + sig.hex() + TERMINATION_LINE
-    
-    @staticmethod
-    def form_renew_request(uname: str, hashP: bytes, newPublicK: bytes, sig: bytes) -> str:
-        return f"{COMMAND_RENEW}:{REQUEST}\n{HEADER_USERNAME}:" + uname.encode().hex() + f"\n{HEADER_HASHED_PASSWORD}:" + hashP.hex() + f"\n{HEADER_PUBLIC_KEY}:" + newPublicK.hex() + f"\n{HEADER_SIGNATURE}:" + sig.hex() + TERMINATION_LINE
-    
-    @staticmethod
-    def form_validation_request(id: bytes, time: bytes) -> str:
-        return f"{COMMAND_VALIDATE}:{REQUEST}\n{HEADER_USER_ID}:" + id.hex() + f"\n{HEADER_EXPIRY_DATE}:" + time.hex() + TERMINATION_LINE
-
-import random
 
 class Camera:
     userKey = None
@@ -112,7 +99,6 @@ class Camera:
     #     pass
 
     def fake_images(self, photoD: bytes, id: bytes, gpsLocation: bytes, localTime: bytes, signature: bytes) -> None:
-        IMAGE_TYPE = ".jpg"
         with open("photoD" + IMAGE_TYPE, 'wb') as file:
             tmp = photoD
             val = random.randint(0, len(tmp)-1)
@@ -156,8 +142,6 @@ class Camera:
         
     def take_photo(self, filepath: str, letLocalTime: bool = False, latitude: int = 0, longitude: int = 0):
         # Header data is stored in big endian
-        ENDIAN = "big"
-        IMAGE_TYPE = ".jpg"
         if not letLocalTime:
             localTime = int.to_bytes(0, 16, ENDIAN, signed=True)
         else:
@@ -178,7 +162,7 @@ class Camera:
                 preSignatureHash = SHA256.new(message)
                 signature = privateEncrypt.sign(preSignatureHash)
 
-                # self.fake_images(photoD, id, gpsLocation, localTime, signature)
+                self.fake_images(photoD, id, gpsLocation, localTime, signature)
 
                 message = message + signature
                 try:
@@ -194,8 +178,6 @@ class Camera:
 
 
     def photo_validation(self, filepath: str) -> bool:
-        ENDIAN = "big"
-        IMAGE_TYPE = ".jpg"
         try:
             with open(filepath + IMAGE_TYPE, 'rb') as file:
                 fileBytes = file.read()
@@ -217,7 +199,7 @@ class Camera:
                     
                     public = PKCS1_v1_5.new(RSA.import_key(publicK))
                     if public.verify(SHA256.new(fileBytes[:-256]), signature):
-                        print(f"<VALID IMAGE>\tInformation about image:\n\tuser name = {bytes.fromhex(uname).decode()} user id = {id}\n\ttime photo taken = year-month-day hour:minute = {localTime}\n\tcoordinates(minues) = [latitude, longitude] = [{latitude}, {longitude}]")
+                        print(f"<VALID IMAGE>\tInformation about image:\n\tuser name = {bytes.fromhex(uname).decode()}, user id = {id}\n\ttime photo taken = year-month-day hour:minute = {localTime}\n\tcoordinates(minues) = [latitude, longitude] = [{latitude}, {longitude}]")
                         sock.close()
                         return True
                     else:

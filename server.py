@@ -1,28 +1,12 @@
-from communication import *
+from serverCommunication import *
+
 from Crypto.Signature import PKCS1_v1_5
 from Crypto.PublicKey import RSA
 from Crypto.Hash import SHA256
 
 from threading import Thread
-from socket import *
-import ssl
 
-class ServerCommunication(Communication):
-    @staticmethod
-    def form_setup_reply(id: bytes, expiryDate: bytes) -> str:
-        return f"{COMMAND_SETUP}:{REPLY}\n{HEADER_USER_ID}:" + id.hex() + f"\n{HEADER_EXPIRY_DATE}:" + expiryDate.hex() + TERMINATION_LINE
-    
-    @staticmethod
-    def form_renew_reply(id: bytes, expiryDate: bytes) -> str:
-        return f"{COMMAND_RENEW}:{REPLY}\n{HEADER_USER_ID}:" + id.hex() + f"\n{HEADER_EXPIRY_DATE}:" + expiryDate.hex() + TERMINATION_LINE
-    
-    @staticmethod
-    def form_validation_reply(uname: bytes, publicK: bytes) -> str:
-        return f"{COMMAND_VALIDATE}:{REPLY}\n{HEADER_USERNAME}:" + uname.hex() + f"\n{HEADER_PUBLIC_KEY}:" + publicK.hex() + TERMINATION_LINE
-    
-    @staticmethod
-    def form_invalid_reply() -> str:
-        return f"{COMMAND_FAILURE}:{REPLY}" + TERMINATION_LINE
+from socket import *
 
 database_Username_Data = {}
 database_Id_Username = {}
@@ -79,7 +63,7 @@ class Server:
         if (data:=self.database_Username_Data.get(bytes.fromhex(uname).decode(), None)) != None:
             if data.passwordH != hashedP:
                 return ServerCommunication.form_invalid_reply()
-            return ServerCommunication.form_setup_reply(int.to_bytes(data.id, 12, "big"), data.expiryDate)
+            return ServerCommunication.form_setup_reply(int.to_bytes(data.id, 12, ENDIAN), data.expiryDate)
         
         username = bytes.fromhex(uname)
         passwordH = bytes.fromhex(hashedP)
@@ -89,12 +73,14 @@ class Server:
         if verify:
             decodedUname = username.decode()
             userId = len(database_Id_Username.keys())
+
+            # GENERATE EXPIRAY DATE FRO GIVEN LICENSE
             expiryDate = b"2025-03-31"
             user_data = SignInDatabase(userId, decodedUname, passwordH, publicKey, expiryDate)
             database_Username_Data[decodedUname] = user_data
             database_Id_Username[userId] = decodedUname
             print("<VALID SETUP REQUEST>")
-            return ServerCommunication.form_setup_reply(userId.to_bytes(12, "big"), expiryDate)
+            return ServerCommunication.form_setup_reply(userId.to_bytes(12, ENDIAN), expiryDate)
         else:
             return ServerCommunication.form_invalid_reply()
         
