@@ -8,6 +8,8 @@ from threading import Thread
 
 from socket import *
 
+import datetime
+
 database_Username_Data = {}
 database_Id_Username = {}
 
@@ -43,13 +45,22 @@ class Server:
 
     def client_thread(self, sock:socket, buffer: bytes = bytes()) -> None:
         data, buffer = ServerCommunication.recieve_message_segment(sock, buffer)
-        print(data)
+        id = data.get(HEADER_USER_ID, None)
+        uname = data.get(HEADER_USERNAME, None)
+        hashedP = data.get(HEADER_HASHED_PASSWORD, None)
+        publicK = data.get(HEADER_PUBLIC_KEY, None)
+        signature = data.get(HEADER_SIGNATURE, None)
+        pictureDate = data.get(HEADER_EXPIRY_DATE, None)
+        # print(data)
         if (setup_command := data.get(COMMAND_SETUP, None)) != None and setup_command == REQUEST:
-            reply = self.setup_request(data.get(HEADER_USERNAME, None), data.get(HEADER_HASHED_PASSWORD, None), data.get(HEADER_PUBLIC_KEY, None), data.get(HEADER_SIGNATURE, None))
+            print(COMMAND_SETUP, uname)
+            reply = self.setup_request(uname, hashedP, publicK, signature)
         elif (setup_command := data.get(COMMAND_RENEW, None)) != None and setup_command == REQUEST:
+            print(COMMAND_RENEW, uname)
             reply = ServerCommunication.form_invalid_reply()
         elif (setup_command := data.get(COMMAND_VALIDATE, None)) != None and setup_command == REQUEST:
-            reply = self.validate_request(data.get(HEADER_USER_ID, None), data.get(HEADER_EXPIRY_DATE, None))
+            print(COMMAND_VALIDATE, id, pictureDate)
+            reply = self.validate_request(id, pictureDate)
         else:
             reply = ServerCommunication.form_invalid_reply()
         sock.send(reply.encode())
@@ -75,7 +86,7 @@ class Server:
             userId = len(database_Id_Username.keys())
 
             # GENERATE EXPIRAY DATE FRO GIVEN LICENSE
-            expiryDate = b"2025-03-31"
+            expiryDate = "2025-01-01".encode()
             user_data = SignInDatabase(userId, decodedUname, passwordH, publicKey, expiryDate)
             database_Username_Data[decodedUname] = user_data
             database_Id_Username[userId] = decodedUname
@@ -85,14 +96,21 @@ class Server:
             return ServerCommunication.form_invalid_reply()
         
     def validate_request(self, id: str = None, pictureDate: str = None):
+        invalid = ServerCommunication.form_invalid_reply()
         if not (id and pictureDate):
-            return ServerCommunication.form_invalid_reply()
+            return invalid
         id = int(id, base=16)
         if (username := database_Id_Username.get(id, None)) != None and (user_data := database_Username_Data.get(username, None)) != None:
-            print("<VALID VALIDATE REQUEST>")
-            return ServerCommunication.form_validation_reply(user_data.username.encode(), user_data.publicKey)
-        else:
-            return ServerCommunication.form_invalid_reply()
+            try:
+                photoDate = bytes.fromhex(pictureDate).decode().split("-")
+                expiryDate = user_data.expiryDate.decode().split("-")
+                if len(photoDate) == 3 and datetime.datetime(int(photoDate[0]), int(photoDate[1]), int(photoDate[2])) <= datetime.datetime(int(expiryDate[0]), int(expiryDate[1]), int(expiryDate[2])):
+                    print("<VALID VALIDATE REQUEST>")
+                    return ServerCommunication.form_validation_reply(user_data.username.encode(), user_data.publicKey)
+            except:
+                return invalid
+
+        return invalid
 
 if __name__ == "__main__":
     server = Server()

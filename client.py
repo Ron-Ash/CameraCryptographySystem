@@ -68,8 +68,27 @@ class Camera:
         if self.id == None or self.expiryDate == None:
             print("<ERROR>\tcould not setup license")
             return
-        self.take_photo("Image", True, -87*56, 157*43)
-        self.photo_validation("Image")
+        
+        self.main()
+
+    def main(self) -> None:
+        while True:
+            command = input(f"({COMMAND_GENERATE}|{COMMAND_VALIDATE}|{COMMAND_RENEW}|{COMMAND_EXIT}) file:\t").split(" ")
+            if len(command) == 2:
+                filename = command[1].split(".")[0]
+                if command[0] == COMMAND_GENERATE:
+                    self.take_photo(filename, True, -87*56, 157*43)
+                elif command[0] == COMMAND_VALIDATE:
+                    self.photo_validation(filename)
+                elif command[0] == COMMAND_RENEW:
+                    pass
+                else:
+                    print(f"<ERROR>\tIncorrect input")
+            elif command[0] == COMMAND_EXIT:
+                break
+            else:
+                print(f"<ERROR>\tIncorrect input")
+        return
 
     def setup_license(self)-> tuple[int, str] | tuple[None, None]:
         try:
@@ -162,7 +181,7 @@ class Camera:
                 preSignatureHash = SHA256.new(message)
                 signature = privateEncrypt.sign(preSignatureHash)
 
-                self.fake_images(photoD, id, gpsLocation, localTime, signature)
+                # self.fake_images(photoD, id, gpsLocation, localTime, signature)
 
                 message = message + signature
                 try:
